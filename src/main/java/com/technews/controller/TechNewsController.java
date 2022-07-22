@@ -1,7 +1,9 @@
 package com.technews.controller;
 
+import com.technews.model.Comment;
 import com.technews.model.Post;
 import com.technews.model.User;
+import com.technews.model.Vote;
 import com.technews.repository.CommentRepository;
 import com.technews.repository.PostRepository;
 import com.technews.repository.UserRepository;
@@ -11,11 +13,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @Controller
 public class TechNewsController {
@@ -131,6 +132,54 @@ public class TechNewsController {
             postRepository.save(tempPost);
 
             return "redirect:/dashboard";
+        }
+    }
+
+    @PostMapping("/comments")
+    public String createCommentCommentsPage(@ModelAttribute Comment comment, Model model, HttpServletRequest request) {
+
+        if (comment.getCommentText().isEmpty() || comment.getCommentText().equals(null)) {
+            return "redirect:/singlePostEmptyComment/" + comment.getPostId();
+        } else {
+            if (request.getSession(false) != null) {
+                User sessionUser = (User) request.getSession().getAttribute("SESSION_USER");
+                comment.setUserId(sessionUser.getId());
+                commentRepository.save(comment);
+                return "redirect:/post/" + comment.getPostId();
+            } else {
+                return "login";
+            }
+        }
+    }
+    @PostMapping("/comments/edit")
+    public String createCommentEditPage(@ModelAttribute Comment comment, HttpServletRequest request) {
+
+        if (comment.getCommentText().equals("") || comment.getCommentText().equals(null)) {
+            return "redirect:/editPostEmptyComment/" + comment.getPostId();
+        } else {
+            if (request.getSession(false) != null) {
+                User sessionUser = (User) request.getSession().getAttribute("SESSION_USER");
+                comment.setUserId(sessionUser.getId());
+                commentRepository.save(comment);
+
+                return "redirect:/dashboard/edit/" + comment.getPostId();
+            } else {
+                return "redirect:/login";
+            }
+        }
+    }
+
+    @PutMapping("/posts/upvote")
+    public void addVoteCommentsPage(@RequestBody Vote vote, HttpServletRequest request, HttpServletResponse response) {
+
+        if (request.getSession(false) != null) {
+            Post returnPost = null;
+            User sessionUser = (User) request.getSession().getAttribute("SESSION_USER");
+            vote.setUserId(sessionUser.getId());
+            voteRepository.save(vote);
+
+            returnPost = postRepository.getById(vote.getPostId());
+            returnPost.setVoteCount(voteRepository.countVotesByPostId(vote.getPostId()));
         }
     }
 }
